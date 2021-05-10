@@ -166,7 +166,7 @@ RCT_EXPORT_VIEW_PROPERTY(onTouch, RCTDirectEventBlock);
 
 + (NSDictionary *)faceDetectorConstants
 {
-#if __has_include(<FirebaseMLVision/FirebaseMLVision.h>)
+#if __has_include(<MLKitFaceDetection/MLKitFaceDetection.h>)
     return [FaceDetectorManagerMlkit constants];
 #else
     return [NSDictionary new];
@@ -175,7 +175,7 @@ RCT_EXPORT_VIEW_PROPERTY(onTouch, RCTDirectEventBlock);
 
 + (NSDictionary *)barcodeDetectorConstants
 {
-#if __has_include(<FirebaseMLVision/FirebaseMLVision.h>)
+#if __has_include(<MLKitFaceDetection/MLKitFaceDetection.h>)
     return [BarcodeDetectorManagerMlkit constants];
 #else
     return [NSDictionary new];
