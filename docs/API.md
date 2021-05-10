@@ -78,7 +78,7 @@ For selecting from multiple cameras on Android devices. See [2492](https://githu
 
 | Type   | Default Value | Platform |
 | ------ | ------------- | -------- |
-| String | `null`        | Android  |
+| String | `''`          | Android, iOS  |
 
 ---
 
@@ -147,6 +147,7 @@ interface TakePictureOptions {
 
   /** iOS only */
   forceUpOrientation?: boolean;
+  imageType?: ImageType;
 }
 
 interface TakePictureResponse {

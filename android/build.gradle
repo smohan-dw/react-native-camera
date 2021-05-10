@@ -9,12 +9,13 @@ buildscript {
   if (project == rootProject) {
     repositories {
       google()
+      mavenCentral()
       jcenter()
     }
 
     dependencies {
       //noinspection GradleDependency
-      classpath("com.android.tools.build:gradle:3.6.3")
+      classpath("com.android.tools.build:gradle:4.1.0")
     }
   }
 }
@@ -22,12 +23,13 @@ buildscript {
 apply plugin: 'com.android.library'
 
 android {
-  compileSdkVersion safeExtGet('compileSdkVersion', 28)
-  buildToolsVersion safeExtGet('buildToolsVersion', '28.0.3')
+  compileSdkVersion safeExtGet('compileSdkVersion', 29)
+  buildToolsVersion safeExtGet('buildToolsVersion', '29.0.2')
 
   defaultConfig {
+    multiDexEnabled true
     minSdkVersion safeExtGet('minSdkVersion', 16)
-    targetSdkVersion safeExtGet('targetSdkVersion', 28)
+    targetSdkVersion safeExtGet('targetSdkVersion', 29)
   }
 
   flavorDimensions "react-native-camera"
@@ -71,7 +73,7 @@ dependencies {
   implementation "com.google.zxing:core:3.3.3"
   implementation "com.drewnoakes:metadata-extractor:2.11.0"
   generalImplementation "com.google.android.gms:play-services-vision:$googlePlayServicesVisionVersion"
-  implementation "androidx.exifinterface:exifinterface:1.0.0"
+  implementation "androidx.exifinterface:exifinterface:1.3.2"
   implementation "androidx.annotation:annotation:1.0.0"
   implementation "androidx.legacy:legacy-support-v4:1.0.0"
   mlkitImplementation "com.google.android.gms:play-services-mlkit-text-recognition:${safeExtGet('mlkit-text-recognition', '16.0.0')}"

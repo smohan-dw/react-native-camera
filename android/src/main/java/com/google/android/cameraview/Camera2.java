@@ -268,6 +268,8 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener, Me
 
     private Boolean mPlaySoundOnCapture = false;
 
+    private Boolean mPlaySoundOnRecord = false;
+
     private Surface mPreviewSurface;
 
     private Rect mInitialCropRegion;
@@ -598,6 +600,9 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener, Me
                 // same TODO as onVideoRecorded
                 mCallback.onRecordingStart(mVideoPath, 0, 0);
 
+                if (mPlaySoundOnRecord) {
+                    sound.play(MediaActionSound.START_VIDEO_RECORDING);
+                }
                 return true;
             } catch (CameraAccessException | IOException e) {
                 e.printStackTrace();
@@ -710,6 +715,16 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener, Me
     }
 
     @Override
+    void setPlaySoundOnRecord(boolean playSoundOnRecord) {
+        mPlaySoundOnRecord = playSoundOnRecord;
+    }
+
+    @Override
+    boolean getPlaySoundOnRecord() {
+        return mPlaySoundOnRecord;
+    }
+
+    @Override
     void setScanning(boolean isScanning) {
         if (mIsScanning == isScanning) {
             return;
@@ -783,7 +798,7 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener, Me
      * {@link #mFacing}.</p>
      */
     private boolean chooseCameraIdByFacing() {
-        if(_mCameraId == null){
+        if(_mCameraId == null || _mCameraId.isEmpty()){
             try {
                 int internalFacing = INTERNAL_FACINGS.get(mFacing);
                 final String[] ids = mCameraManager.getCameraIdList();
@@ -1428,6 +1443,9 @@ class Camera2 extends CameraViewImpl implements MediaRecorder.OnInfoListener, Me
         mMediaRecorder = null;
 
         mCallback.onRecordingEnd();
+        if (mPlaySoundOnRecord) {
+            sound.play(MediaActionSound.STOP_VIDEO_RECORDING);
+        }
 
         if (mVideoPath == null || !new File(mVideoPath).exists()) {
             // @TODO: implement videoOrientation and deviceOrientation calculation

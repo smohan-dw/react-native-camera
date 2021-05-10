@@ -86,13 +86,13 @@ BOOL _sessionInterrupted = NO;
 
         UITapGestureRecognizer * tapHandler=[self createTapGestureRecognizer];
         [self addGestureRecognizer:tapHandler];
-        UITapGestureRecognizer * doubleTabHandler=[self createDoubleTapGestureRecognizer];
-        [self addGestureRecognizer:doubleTabHandler];
+        UITapGestureRecognizer * doubleTapHandler=[self createDoubleTapGestureRecognizer];
+        [self addGestureRecognizer:doubleTapHandler];
 
         self.autoFocus = -1;
         self.exposure = -1;
         self.presetCamera = AVCaptureDevicePositionUnspecified;
-        self.cameraId = nil;
+        self.cameraId = @"";
         self.isFocusedOnPoint = NO;
         self.isExposedOnPoint = NO;
         self.invertImageData = true;
@@ -133,7 +133,7 @@ BOOL _sessionInterrupted = NO;
     if (tapRecognizer.state == UIGestureRecognizerStateRecognized) {
         CGPoint location = [tapRecognizer locationInView:self];
         NSDictionary *tapEvent = [NSMutableDictionary dictionaryWithDictionary:@{
-            @"isDoubleTab":@(isDoubleTap),
+            @"isDoubleTap":@(isDoubleTap),
             @"touchOrigin": @{
                 @"x": @(location.x),
                 @"y": @(location.y)
@@ -316,7 +316,7 @@ BOOL _sessionInterrupted = NO;
 -(AVCaptureDevice*)getDevice
 {
     AVCaptureDevice *captureDevice;
-    if(self.cameraId != nil){
+    if(self.cameraId != nil && self.cameraId.length){
         captureDevice = [RNCameraUtils deviceWithCameraId:self.cameraId];
     }
     else{
@@ -333,7 +333,7 @@ BOOL _sessionInterrupted = NO;
 -(AVCaptureSessionPreset)getDefaultPreset
 {
     AVCaptureSessionPreset preset =
-    ([self pictureSize] && [[self pictureSize] integerValue] >= 0) ? [self pictureSize] : AVCaptureSessionPresetPhoto;
+    ([self pictureSize] && [[self pictureSize] integerValue] >= 0) ? [self pictureSize] : AVCaptureSessionPresetHigh;
 
     return preset;
 }
@@ -825,10 +825,22 @@ BOOL _sessionInterrupted = NO;
                 // bridge the copy for auto release
                 NSMutableDictionary *metadata = (NSMutableDictionary *)CFBridgingRelease(mutableMetaDict);
 
+                RNCameraImageType imageType = RNCameraImageTypeJPEG;
+                CFStringRef imageTypeIdentifier = kUTTypeJPEG;
+                NSString *imageExtension = @".jpg";
+                if ([options[@"imageType"] isEqualToString:@"png"]) {
+                    imageType = RNCameraImageTypePNG;
+                    imageTypeIdentifier = kUTTypePNG;
+                    imageExtension = @".png";
+                }
 
                 // Get final JPEG image and set compression
-                float quality = [options[@"quality"] floatValue];
-                [metadata setObject:@(quality) forKey:(__bridge NSString *)kCGImageDestinationLossyCompressionQuality];
+                NSString *qualityKey = (__bridge NSString *)kCGImageDestinationLossyCompressionQuality;
+                if (imageType == RNCameraImageTypeJPEG) {
+                    float quality = [options[@"quality"] floatValue];
+                    [metadata setObject:@(quality) forKey:qualityKey];
+                }
+
 
                 // Reset exif orientation if we need to due to image changes
                 // that already rotate the image.
@@ -843,7 +855,7 @@ BOOL _sessionInterrupted = NO;
                 // idea taken from: https://stackoverflow.com/questions/9006759/how-to-write-exif-metadata-to-an-image-not-the-camera-roll-just-a-uiimage-or-j/9091472
                 NSMutableData * destData = [NSMutableData data];
 
-                CGImageDestinationRef destination = CGImageDestinationCreateWithData((__bridge CFMutableDataRef)destData, kUTTypeJPEG, 1, NULL);
+                CGImageDestinationRef destination = CGImageDestinationCreateWithData((__bridge CFMutableDataRef)destData, imageTypeIdentifier, 1, NULL);
 
                 // defaults to true, must like Android
                 bool writeExif = true;
@@ -915,7 +927,16 @@ BOOL _sessionInterrupted = NO;
 
                 }
 
-                CGImageDestinationAddImage(destination, takenImage.CGImage, writeExif ? ((__bridge CFDictionaryRef) metadata) : nil);
+                CFDictionaryRef finalMetaData = nil;
+                if (writeExif) {
+                    finalMetaData = (__bridge CFDictionaryRef)metadata;
+                } else if (metadata[qualityKey]) {
+                    // In order to apply the desired compression quality,
+                    // it is necessary to specify the kCGImageDestinationLossyCompressionQuality in the metadata.
+                    finalMetaData = (__bridge CFDictionaryRef)@{qualityKey: metadata[qualityKey]};
+                }
+
+                CGImageDestinationAddImage(destination, takenImage.CGImage, finalMetaData);
 
 
                 // write final image data with metadata to our destination
@@ -928,7 +949,7 @@ BOOL _sessionInterrupted = NO;
                         path = options[@"path"];
                     }
                     else{
-                        path = [RNFileSystem generatePathInDirectory:[[RNFileSystem cacheDirectoryPath] stringByAppendingPathComponent:@"Camera"] withExtension:@".jpg"];
+                        path = [RNFileSystem generatePathInDirectory:[[RNFileSystem cacheDirectoryPath] stringByAppendingPathComponent:@"Camera"] withExtension:imageExtension];
                     }
 
                     if (![options[@"doNotSave"] boolValue]) {
@@ -1077,17 +1098,19 @@ BOOL _sessionInterrupted = NO;
     if(recordAudio && self.captureAudio){
 
         // if we haven't initialized our capture session yet
-        // initialize it. This will cause video to flicker.
-        [self initializeAudioCaptureSessionInput];
+        // initialize it (this will cause video to flicker.)
+        // Dispatch through our session queue as we may have race conditions
+        // with this and the captureAudio prop
+        dispatch_async(self.sessionQueue, ^{
+            [self initializeAudioCaptureSessionInput];
 
-
-        // finally, make sure we got access to the capture device
-        // and turn the connection on.
-        if(self.audioCaptureDeviceInput != nil){
-            AVCaptureConnection *audioConnection = [self.movieFileOutput connectionWithMediaType:AVMediaTypeAudio];
-            audioConnection.enabled = YES;
-        }
-
+            // finally, make sure we got access to the capture device
+            // and turn the connection on.
+            if(self.audioCaptureDeviceInput != nil){
+                AVCaptureConnection *audioConnection = [self.movieFileOutput connectionWithMediaType:AVMediaTypeAudio];
+                audioConnection.enabled = YES;
+            }
+        });
     }
 
     // if we have a capture input but are muted
@@ -1283,7 +1306,7 @@ BOOL _sessionInterrupted = NO;
         }
 
         // if camera not set (invalid type and no ID) return.
-        if (self.presetCamera == AVCaptureDevicePositionUnspecified && self.cameraId == nil) {
+        if (self.presetCamera == AVCaptureDevicePositionUnspecified && (self.cameraId == nil || !self.cameraId.length)) {
             return;
         }
 
@@ -1295,7 +1318,7 @@ BOOL _sessionInterrupted = NO;
 
         AVCaptureStillImageOutput *stillImageOutput = [[AVCaptureStillImageOutput alloc] init];
         if ([self.session canAddOutput:stillImageOutput]) {
-            stillImageOutput.outputSettings = @{AVVideoCodecKey : AVVideoCodecJPEG};
+            stillImageOutput.outputSettings = @{AVVideoCodecKey : AVVideoCodecJPEG, AVVideoQualityKey: @(1.0)};
             [self.session addOutput:stillImageOutput];
             [stillImageOutput setHighResolutionStillImageOutputEnabled:YES];
             self.stillImageOutput = stillImageOutput;
@@ -1984,9 +2007,15 @@ BOOL _sessionInterrupted = NO;
 
     [instruction setLayerInstructions:@[transformer]];
     [videoComposition setInstructions:@[instruction]];
+    
+    //get preset for export via default or session
+    AVCaptureSessionPreset preset = [self getDefaultPreset];
+    if (self.session.sessionPreset != preset) {
+        preset = self.session.sessionPreset;
+    }
 
     // Export
-    AVAssetExportSession* exportSession = [AVAssetExportSession exportSessionWithAsset:videoAsset presetName:AVAssetExportPreset640x480];
+    AVAssetExportSession* exportSession = [AVAssetExportSession exportSessionWithAsset:videoAsset presetName:preset];
     NSString* filePath = [RNFileSystem generatePathInDirectory:[[RNFileSystem cacheDirectoryPath] stringByAppendingString:@"CameraFlip"] withExtension:@".mp4"];
     NSURL* outputURL = [NSURL fileURLWithPath:filePath];
     [exportSession setOutputURL:outputURL];

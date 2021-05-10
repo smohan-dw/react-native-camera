@@ -356,6 +356,10 @@ An `{width:, height: }` object which defines the width and height of the cameraV
 
 Boolean to turn on or off the camera's shutter sound (default false). Note that in some countries, the shutter sound cannot be turned off.
 
+### `Android` `playSoundOnRecord`
+
+Boolean to turn on or off the camera's record sound (default false)
+
 ### `iOS` `videoStabilizationMode`
 
 The video stabilization mode used for a video recording. The possible values are:
@@ -622,7 +626,7 @@ Supported options:
 
 - `mirrorImage` (boolean true or false). Use this with `true` if you want the resulting rendered picture to be mirrored (inverted in the vertical axis). If no value is specified `mirrorImage:false` is used.
 
-- `writeExif`: (boolean or object, defaults to true). Setting this to a boolean indicates if the image exif should be preserved after capture, or removed. Setting it to an object, merges any data with the final exif output. This is useful, for example, to add GPS metadata (note that GPS info is correctly transalted from double values to the EXIF format, so there's no need to read the EXIF protocol).
+- `writeExif`: (boolean or object, defaults to true). Setting this to a boolean indicates if the image exif should be preserved after capture, or removed. Setting it to an object, merges any data with the final exif output. This is useful, for example, to add GPS metadata (note that GPS info is correctly translated from double values to the EXIF format, so there's no need to read the EXIF protocol).
 
 ```js
 writeExif = {
@@ -637,6 +641,8 @@ writeExif = {
 - `fixOrientation` (android only, boolean true or false) Use this with `true` if you want to fix incorrect image orientation (can take up to 5 seconds on some devices). Do not provide this if you only need EXIF based orientation.
 
 - `forceUpOrientation` (iOS only, boolean true or false). This property allows to force portrait orientation based on actual data instead of exif data.
+
+- `imageType` (iOS only, ImageType 'jpg' or 'png'). This property allows setting the output image format to PNG or JPEG (default).
 
 - `doNotSave` (boolean true or false). Use this with `true` if you do not want the picture to be saved as a file to cache. If no value is specified `doNotSave:false` is used. If you only need the base64 for the image, you can use this with `base64:true` and avoid having to save the file.
 
@@ -744,6 +750,10 @@ Resumes the preview after pausePreview() has been called.
 ### `Android` `getSupportedRatiosAsync(): Promise`
 
 Android only. Returns a promise. The promise will be fulfilled with an object with an array containing strings with all camera aspect ratios supported by the device.
+
+### `Android` `checkIfVideoIsValid(path): Promise<boolean>`
+
+Static method and Android only. Returns a promise. The promise will be fulfilled with a boolean indicating if the given path contains a valid (non corrupted) video file. Useful for some android devices that may store corrupted files from time to time. Note: make sure to not include file:// since not all android implementations support URI strings (use /path/to/file/instead).
 
 ### `getCameraIdsAsync(): Promise`
 
